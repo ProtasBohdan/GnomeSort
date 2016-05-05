@@ -1,26 +1,3 @@
-;********************************
-;Protas Bohdan, 04.05.2016
-;
-;*******************************
-.model small
-.stack 256
-.data
-    array dw 5 dup (?)
-.code
-start:
-    mov ax, @data
-    mov ds, ax
-    mov es, ax
-    
-	call InputInt
-	call OutInt
-	
-    xor ax, ax
-    int 16h
-	
-    mov ax, 4c00h
-    int 21h
- 
 ;--------------------------------------------------
 ;  Підпрограма вводу цілого 10-числа з клавіатури
 ;  ax - введене число
@@ -167,5 +144,45 @@ oi3:
 	
     ret
 OutInt endp
-        
-end start
+;-------------------------------------------
+; Процедуро заповнення массива з клавіатури
+; сх  - кількість елементів массива
+;-------------------------------------------
+GetArray proc
+    mov cx, count   ;длинна массива
+    mov bx, 0	;ітератор
+@@1:
+    call InputInt
+    mov array[bx], ax
+    add bx, 2
+    loop @@1
+	
+
+    ret
+GetArray endp
+
+;---------------------------------------------
+;Процедура виводу масиву на консоль
+;сх - довжина массива
+;---------------------------------------------
+OutArray proc
+    mov cx, count   ;довжина массива
+    mov bx, 0
+    mov dl, ' '
+@@2:
+    mov ax, array[bx]
+    call OutInt
+    mov ah, 2
+    int 21h
+	
+    add bx, 2
+    loop @@2
+	
+    ret
+OutArray endp
+	
+
+
+ 
+ 
+ 
