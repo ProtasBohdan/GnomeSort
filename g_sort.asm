@@ -3,25 +3,183 @@
 .data
     array   dw  50 dup (?)
 	count	dw	?
+	fn 		db 'answer.txt', 0
+	dscr    dw ?
+	buf 	db 5 dup (?)
+	space	dw ' '
+	
+	WrongMsg    db  'Fatal error!',13,10,'$'
 .code
+
+;------------------------------------------------
+;Опис макросів
+;------------------------------------------------
+;Макрос виводу символу на екран
+PUTC    MACRO   char
+        PUSH    AX
+        MOV     AL, char
+        MOV     AH, 0Eh
+        INT     10h     
+        POP     AX
+ENDM
+;-------------------------------------------------
+;Макрос виводу рядків символів на екран
+;-------------------------------------------------
+PRINT   MACRO   sdat
+LOCAL   next_char, s_dcl, printed, skip_dcl
+
+PUSH    AX      ; store registers...
+PUSH    SI      ;
+
+JMP     skip_dcl        ; skip declaration.
+        s_dcl DB sdat, 0
+
+skip_dcl:
+        LEA     SI, s_dcl
+        
+next_char:      
+        MOV     AL, CS:[SI]
+        CMP     AL, 0
+        JZ      printed
+        INC     SI
+        MOV     AH, 0Eh ; teletype function.
+        INT     10h
+        JMP     next_char
+printed:
+
+POP     SI      ; re-store registers...
+POP     AX      ;
+ENDM
+;----------------------------------------------------------------
+; Це макрос друкує рядок символів який передеаємть параметром
+; В кінці виводиться кінець рядка
+;----------------------------------------------------------------
+PRINTN   MACRO   sdat
+LOCAL   next_char, s_dcl, printed, skip_dcl
+
+PUSH    AX      ; store registers...
+PUSH    SI      ;
+
+JMP     skip_dcl        ; skip declaration.
+        s_dcl DB sdat, 13, 10, 0
+
+skip_dcl:
+        LEA     SI, s_dcl
+        
+next_char:      
+        MOV     AL, CS:[SI]
+        CMP     AL, 0
+        JZ      printed
+        INC     SI
+        MOV     AH, 0Eh ; teletype function.
+        INT     10h
+        JMP     next_char
+printed:
+
+POP     SI      ; re-store registers...
+POP     AX      ;
+ENDM
+
+;-----------------------------------------------------------------
+;
+;Початок виконання програми
+;
+;-----------------------------------------------------------------
 start:
+
 	mov ax, @data
     mov ds, ax
     mov es, ax
 	
+	PRINTN "Enter numb of elements:"
 	call InputInt
 	mov  count, ax
 	
 	call GetArray
 	call GnomeSort
+	
+	call InputToFile
 	call OutArray
 	
-
-	xor ax, ax
+	
+	xor ax, ax			;wait for user
     int 16h
 	
 	mov ax, 4c00h
     int 21h
+	
+	
+;---------------------------------------------------------------------
+;Підпрограма запису відповіді в файл
+;---------------------------------------------------------------------
+InputToFile proc
+	;Відкриваємо файл
+	mov ah,3ch
+	xor cx, cx
+	lea dx, fn
+	int 21h
+	
+	;При помилці відкриття виходимо
+	jc @exit
+	mov dscr, ax
+	mov si, 0		;ітератор
+	mov di, count
+	
+@again:
+	cmp di, 0
+	je @exit
+
+	;вибираємо число з масиву
+	xor cx,cx
+	mov ax, array[si]
+	add si, 2
+	mov bx, 10
+
+	;перетворюємо число в 16 СЧ
+div10:
+	xor dx,dx
+	div bx
+	push dx
+	inc cx
+	or ax, 0
+	jnz div10
+
+	mov dx, cx
+	xor bx, bx
+
+nxt:
+	pop ax
+	add al, 30h
+	mov buf[bx], al
+	inc bx
+	loop nxt
+
+	;записуємо переведене число в файл
+	mov ah, 40h
+	mov bx, dscr
+	mov cx, dx
+	lea dx, buf
+	int 21h
+	
+	;виводимо пробіл
+	mov ah, 40h
+	mov bx, dscr
+	mov cx, 1
+	mov dx, offset space
+	int 21h
+	
+	
+	
+	
+
+	;декрементуємо di та при необхідності повторюємо
+	dec di
+	jmp @again
+
+@exit:
+    ret
+	
+InputToFile endp
 	
 ;--------------------------------------------------------------------
 ;Підпрограма сортування масиву DWORD алгоритмом "гнома"
@@ -102,6 +260,7 @@ InputInt proc
     push ds
     push cs
     pop ds
+	
 ;при невдалому введенні спробувати знову
 again:
 
@@ -192,14 +351,14 @@ OutInt proc
     push di
     push cs
     pop ds
-;Перевіряємо число на знак
+	
+	;Перевіряємо число на знак
     test ax, ax
     jns oi1
 	
     mov di, 1
     neg ax
 	
-
 oi1:
     xor cx, cx
     mov bx, 10				;основа СЧ
@@ -207,21 +366,22 @@ oi1:
 oi2:
     xor dx, dx
     div bx
-;Ділимо число на основу СЧ. В залишку
+	
+	;Ділимо число на основу СЧ. В залишку
     add dx, '0'
     push dx					;зберігаємо значення в стек
     inc cx
 	
-;Відділяємо цифру справа поки не залишиться 0
+	;Відділяємо цифру справа поки не залишиться 0
     test ax, ax
     jne oi2
 	
- ;Виводимо отримане значення
+	;Виводимо отримане значення
     mov ah, 2
     cmp di, 1
     jne oi3
 	
-;При відємному числі виводимо знак '-'
+	;При відємному числі виводимо знак '-'
     mov dl, '-'
     int 21h
 
@@ -280,4 +440,3 @@ OutArray proc
     ret
 OutArray endp
 end start
-	
