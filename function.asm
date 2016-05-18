@@ -158,62 +158,7 @@ InputToFile endp
 ;	array - покажчик на масиву
 ;	count - кількість елементів у масиві
 ;--------------------------------------------------------------------
-GnomeSort proc
-	;Зберігаємо регістри в стек
-	push BP
-    mov  BP, SP
-    push BX
-    push SI
-    push DI
-	
-    mov CX, count     ;заносимо в ECX кількість елементів массиву 
-    xor AX, AX        ;обнулюємо АХ, який буде ітератором
-    
-    MainLoop:
-        ;Якщо 'i' >= кількості елементів, то виходисо з  циклу
-        cmp AX, CX
-        jge EndLoop     
-        
-        ;Якщо 'i' == 0, перейти до наступного елементу
-        cmp AX, 0
-        je IncreaseCounter
-        
-        ;Якщо array[i-1] <= array[i], це означає що массив є відсортованим, отже переводимо до наступного елементу
-        mov BX, array[SI]      
-        mov DX, array[SI-2] 
-        cmp DX, BX
-        jle IncreaseCounter
-        
-        ;Інакше міняємо місцями array[i-1] з array[i]
-        push array[SI]
-        push array[SI-2]
-        
-        pop array[SI]
-        pop array[SI-2]
-        
-        ;Переходимо до попереднього елементу в масиві і декрементуємо АХ
-        sub SI, 2
-        dec AX
-        
-        BackToMainLoop:
-        jmp MainLoop
-        
-        ;Переходимо до наступного елементу в масиві і інкрементуємо АХ
-    IncreaseCounter:
-        inc AX
-        add SI, 2
-        jmp BackToMainLoop
-    
-    EndLoop:
-    
-    ;Відновлюємо регістри
-	pop DI
-    pop SI
-    pop BX
-    pop BP
-	
-    ret
-GnomeSort endp
+
 ;--------------------------------------------------------------
 ;  Підпрограма запису цілого 10-числа з клавіатури
 ;--------------------------------------------------------------
@@ -238,7 +183,7 @@ again:
 	;функція вводу символу з клавіатури
     mov ah,0ah
     xor di,di
-    mov dx, offset buff	
+    mov dx, offset buffs	
     int 21h
 	
     mov dl,0ah
@@ -247,7 +192,7 @@ again:
 	
 ;обробляємо значення буфера
 ;адрес початку строки
-    mov si, offset buff+2 
+    mov si, offset buffs+2 
     cmp byte ptr [si], "-"	;перевірка першого символу на мінус
     jnz ii1
     mov di,1  
@@ -293,7 +238,7 @@ ii3:
 	
     ret							
 	
-buff   		db 6,7 Dup(?)
+buffs   		db 6,7 Dup(?)
 InputInt endp
 ;--------------------------------------------------------------
 ;Підпрограма виводу цілого 10-го числа
@@ -444,4 +389,105 @@ WriteStr    PROC
      int 21h
 	 
      ret
-WriteStr  ENDP  
+WriteStr  ENDP
+  
+;-----------------------------------------------------------------------
+;функція читання з файлу
+;----------------------------------------------------------------------
+ReadFromFile proc
+	;open file
+	mov dx, offset fname
+	call OpenFileRead
+	;jc Error
+	mov handle, ax
+	
+	mov buff, 0
+  	mov position, 0	;position in the file
+	xor si, si		;iterator for main array
+	xor di, di		;pointer for negative digit
+	
+@@again:
+	;--------------------------------------------------------------------
+	;counter to correct position
+	mov bx, handle
+	mov al, 0
+	mov cx, 0
+	mov dx, position			;start position
+	mov ah, 42h
+	int 21h
+	;jc @@Error
+	inc position	;shift the position in file
+	
+	;read from file
+	mov bx, handle
+	mov ah, 3fh
+	mov cx, 1			;how many symbols to read
+	mov dx, offset t_buff
+	int 21h
+	
+;checking for end of file
+	cmp t_buff, '$'
+	je Exit
+	
+;checking fo negative digit
+	cmp t_buff, '-'
+	jne @@postv
+	mov di, 1
+	jmp @@again
+	
+@@postv:
+;checking for space
+	cmp t_buff, ' '
+	jne @@cont
+	
+;if space load an array and reset the buff
+	cmp position, 3
+	jne @@ncount
+	push buff
+	pop  count
+	mov buff, 0
+	jmp @@again
+@@ncount:
+	cmp di,1 
+    jne @@pos
+	mov bx, buff
+    neg bx
+	mov buff, bx
+@@pos:
+
+	mov bx, buff
+	mov array[si], bx
+	add si, 2			;shift array index
+	mov buff, 0
+	xor di, di
+	jmp @@again
+	
+@@cont:
+	xor ch, ch
+	mov cl, t_buff
+	
+	;перевіряємо на правильність вводу
+    cmp cl,'0'  
+    jl Exit
+    cmp cl,'9'  
+    ja Exit
+	
+	;початкові установки
+    mov bx, 10				;ініціалізація основи системи числення  
+
+ ;перетворюємо символ в 10-ве число
+    sub cl,'0'
+	xor ch, ch
+	
+	mov ax, buff
+	mul bx
+	add ax, cx
+	mov buff, ax
+	
+	jmp @@again
+Exit:
+	mov bx, handle
+	Call CloseFile
+	jc Exit
+	ret
+ReadFromFile endp

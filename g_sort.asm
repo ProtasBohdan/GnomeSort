@@ -5,10 +5,16 @@
 	count	dw	0
 	fn 		db 'answer.txt', 0
 	dscr    dw ?
-	buf 	dw 5 dup (?)
 	space	dw ' '
 	minus 	dw '-'
 	endfl	dw '$'
+	buf 	dw 5 dup (?)
+	
+	fname 	db 'data.txt', 0h
+	handle  dw '?'
+	buff	dw '?'
+	position dw 0
+	t_buff db ?
 .code
 LOCALS @@			;для використання локальних міток в процедурах
 JUMPS				;для виконання стрибку понад 128 байт
@@ -27,12 +33,16 @@ _again:
 	cmp ax, 1
 	je SetUp
 	cmp ax, 2
-	je PrintMas
+	je Rmfile
 	cmp ax, 3
-	je Sorted
+	je PrintMas
+	
 	cmp ax, 4
-	je SaveAnswer
+	je Sorted
+	
 	cmp ax, 5
+	je SaveAnswer
+	cmp ax, 6
 	je _eexit
 	
 	jmp _again
@@ -49,6 +59,13 @@ SetUp:
 	xor ax, ax			;Зачекати на нажаття клавіші
     int 16h
 	jmp _again
+Rmfile:
+	call ReadFromFile
+	PRINTN "Array successfully readed! "
+	xor ax, ax			;Зачекати на нажаття клавіші
+    int 16h
+	jmp _again
+	
 	;виведення массиву на екан
 PrintMas:
 	PRINT "Array at the moment { "
@@ -59,7 +76,59 @@ PrintMas:
 	jmp _again
 	;Виклик процедури сортування
 Sorted:
-	call GnomeSort
+	push BP
+    mov  BP, SP
+    push BX
+    push SI
+    push DI
+	
+	;xor si, si
+    mov CX, count     ;заносимо в ECX кількість елементів массиву 
+    xor AX, AX        ;обнулюємо АХ, який буде ітератором
+	xor si, si
+    
+    MainLoop:
+        ;Якщо 'i' >= кількості елементів, то виходисо з  циклу
+        cmp AX, CX
+        jge EndLoop     
+        
+        ;Якщо 'i' == 0, перейти до наступного елементу
+        cmp AX, 0
+        je IncreaseCounter
+        
+        ;Якщо array[i-1] <= array[i], це означає що массив є відсортованим, отже переводимо до наступного елементу
+        mov BX, array[SI]      
+        mov DX, array[SI-2] 
+        cmp DX, BX
+        jle IncreaseCounter
+        
+        ;Інакше міняємо місцями array[i-1] з array[i]
+        push array[SI]
+        push array[SI-2]
+        
+        pop array[SI]
+        pop array[SI-2]
+        
+        ;Переходимо до попереднього елементу в масиві і декрементуємо АХ
+        sub SI, 2
+        dec AX
+        
+        BackToMainLoop:
+        jmp MainLoop
+        
+        ;Переходимо до наступного елементу в масиві і інкрементуємо АХ
+    IncreaseCounter:
+        inc AX
+        add SI, 2
+        jmp BackToMainLoop
+    
+    EndLoop:
+    
+    ;Відновлюємо регістри
+	pop DI
+    pop SI
+    pop BX
+    pop BP
 	PRINTN "Array successfully sorted!"
 	xor ax, ax			;Зачекати на нажаття клавіші
     int 16h
@@ -87,11 +156,12 @@ ShowMenu proc
 	PRINTN "                                 <<MENU>>                                     "
 	PRINTN "=============================================================================="
 	PRINTN "     Supported command;                                                       "
-	PRINTN "  <1> -- Input array;                                                         "
-	PRINTN "  <2> -- Show array;                                                          "
-	PRINTN "  <3> -- Sorted array;                                                        "
-	PRINTN "  <4> -- Save array to file 'answer.txt';                                     "
-	PRINTN "  <5> -- Exit;                                                                "
+	PRINTN "  <1> -- Input array from keyboard;                                           "
+	PRINTN "  <2> -- Input array from file;                                               "
+	PRINTN "  <3> -- Show array;                                                          "
+	PRINTN "  <4> -- Sorted array;                                                        "
+	PRINTN "  <5> -- Save array to file 'answer.txt';                                     "
+	PRINTN "  <6> -- Exit;                                                                "
 	PRINTN "=============================================================================="
 	PRINT  "Command "
 	
