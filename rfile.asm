@@ -2,6 +2,7 @@
 .stack 256h
 .data
 	array   dw  50 dup (?)
+	count	dw	0
 	fname 	db 'data.txt', 0h
 	handle  dw '?'
 	buff	dw '?'
@@ -16,6 +17,7 @@ start:
 	mov ax, @data
     mov ds, ax
 	
+	
 	;open file
 	mov dx, offset fname
 	call OpenFileRead
@@ -25,6 +27,8 @@ start:
 	mov buff, 0
   	mov position, 0	;position in the file
 	xor si, si		;iterator for main array
+	xor di, di		;pointer for negative digit
+	
 again:
 	;--------------------------------------------------------------------
 	;counter to correct position
@@ -47,17 +51,30 @@ again:
 ;checking for end of file
 	cmp t_buff, '$'
 	je Exit
-
+;checking fo negative digit
+	cmp t_buff, '-'
+	jne postv
+	mov di, 1
+	jmp again
+postv:
 ;checking for space
 	cmp t_buff, ' '
 	jne cont
 	
 ;if space load an array and reset the buff
-	;mov array[si], buff
-	;inc si			;shift array index
-	;inc position	;shift position
-	;xor buff, buff
-	;jmp again
+	cmp di,1 
+    jnz pos
+	mov bx, buff
+    neg bx
+	mov buff, bx
+pos:
+
+	mov bx, buff
+	mov array[si], bx
+	add si, 2			;shift array index
+	mov buff, 0
+	xor di, di
+	jmp again
 	
 cont:
 	xor ch, ch
@@ -82,15 +99,10 @@ cont:
 	mov buff, ax
 	
 	jmp again
-	
-	
-;якщо встановлений флаг, то робимо число відємним
-enddecin:
-    ;cmp di,1 
-    ;jnz ii3
-    ;neg ax   
-ii3:
+
 Exit:
+	
+	
 	mov bx, handle
 	Call CloseFile
 	jc Error
