@@ -10,15 +10,16 @@
 	minus 	dw '-'
 	endfl	dw '$'
 .code
-LOCALS @@
-JUMPS
-INCLUDE macro.asm
+LOCALS @@			;для використання локальних міток в процедурах
+JUMPS				;для виконання стрибку понад 128 байт
+INCLUDE macro.asm	;підключення файлу з макросами
 
 start:
-	mov ax, @data
+	mov ax, @data	
     mov ds, ax
-    mov es, ax
-
+    ;mov es, ax
+	
+	;Вивід початкового меню
 _again:
 	call ShowMenu
 	call InputPInt
@@ -35,16 +36,20 @@ _again:
 	je _eexit
 	
 	jmp _again
+	;ініціалізація початкових данних
 SetUp:
-	PRINT "Enter the numb of element in massive "
+	PRINT "Enter the number of element in massive "
 	call InputPInt
 	mov count, ax
 	
-	PRINTN "Enter the elements of massive(0 - 65365!):"
+	PRINTN "Enter the elements of massive: "
 	call GetArray
 	
+	PRINTN "Digit successfully inputed! "
+	xor ax, ax			;Зачекати на нажаття клавіші
+    int 16h
 	jmp _again
-	
+	;виведення массиву на екан
 PrintMas:
 	PRINT "Array at the moment { "
 	call OutArray
@@ -52,7 +57,7 @@ PrintMas:
 	xor ax, ax			;Зачекати на нажаття клавіші
     int 16h
 	jmp _again
-	
+	;Виклик процедури сортування
 Sorted:
 	call GnomeSort
 	PRINTN "Array successfully sorted!"
@@ -60,18 +65,19 @@ Sorted:
     int 16h
 	
 	jmp _again
-	
+	;збереження відповіді в файл
 SaveAnswer:
 	call InputToFile
 	
-	PRINTN "Array  will be saved to answer.txt..."
+	PRINTN "Array  will be saved..."
 	xor ax, ax			;Зачекати на нажаття клавіші
     int 16h
 	jmp _again
 _eexit:
 	call ExitProgramm
 	
-INCLUDE function.asm
+INCLUDE function.asm	;Підключення файлу з основними функціями, які використовуються даною програмою
+;Підпрограмма виводу 
 ShowMenu proc
 
     mov  ah,0      
@@ -84,7 +90,7 @@ ShowMenu proc
 	PRINTN "  <1> -- Input array;                                                         "
 	PRINTN "  <2> -- Show array;                                                          "
 	PRINTN "  <3> -- Sorted array;                                                        "
-	PRINTN "  <4> -- Save massive to file 'answer.txt';                                   "
+	PRINTN "  <4> -- Save array to file 'answer.txt';                                     "
 	PRINTN "  <5> -- Exit;                                                                "
 	PRINTN "=============================================================================="
 	PRINT  "Command "
