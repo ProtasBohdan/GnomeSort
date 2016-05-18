@@ -62,6 +62,14 @@ postv:
 	jne cont
 	
 ;if space load an array and reset the buff
+	cmp position, 4
+	jne ncount
+	
+	push buff
+	pop  count
+	inc position
+	jmp again
+ncount:
 	cmp di,1 
     jnz pos
 	mov bx, buff
